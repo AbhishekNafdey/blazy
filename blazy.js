@@ -19,6 +19,12 @@
 })(this, function () {
 	'use strict';
 	
+	 var windowLoaded = false,
+        windowLoadBind = false;
+    $(window).load(function() {
+        windowLoaded = true;
+    });
+
 	//vars
 	var source, options, viewport, images, count, isRetina, destroyed;
 	//throttle vars
@@ -45,6 +51,8 @@
 		viewport				= {};
 		//options
 		options 				= settings 				|| {};
+		  options.imagesArr	    = options.imagesArr 	|| [];
+        options.allowUpdate     = options.allowUpdate || false;
 		options.error	 		= options.error 		|| false;
 		options.offset			= options.offset 		|| 100;
 		options.success			= options.success 		|| false;
@@ -55,6 +63,8 @@
 		options.breakpoints		= options.breakpoints	|| false;
 		options.successClass 	= options.successClass 	|| 'b-loaded';
 		options.src = source 	= options.src			|| 'data-src';
+		options.loadInvisible   = options.loadInvisible || false,
+        options.skipHorizontal  = options.skipHorizontal		|| false;
 		isRetina				= window.devicePixelRatio > 1;
 		viewport.top 			= 0 - options.offset;
 		viewport.left 			= 0 - options.offset;
@@ -97,6 +107,33 @@
 		images.length = 0;
 		destroyed = true;
 	};
+
+	 //Adding this method so that we can directly add images in the array.
+    //This avoids the use of revalidate() and parseing the DOM again for new images.
+    Blazy.prototype.updateImageList = function(img){
+        if (options.allowUpdate) {
+            images.push(img);
+            count ++;
+            execute();
+        }
+    };
+
+    Blazy.prototype.validate = function(){
+        execute();
+    };
+
+    function execute(){
+
+        if (windowLoaded) {
+            validate();
+        } else if(!windowLoadBind) {
+            windowLoadBind = true;
+            $(window).load(function() {
+                validate();
+            });
+        }
+    };
+
 	
 	/* private helper functions
 	************************************/
@@ -115,8 +152,8 @@
 			bindEvent(window, 'resize', validateT);
 	 		bindEvent(window, 'scroll', validateT);
 		}
-		// And finally, we start to lazy load. Should bLazy ensure domready?
-		validate();	
+
+		 execute();
 	}
 	
 	function validate() {
@@ -129,14 +166,14 @@
  				i--;
  			} 
  		}
-		if(count === 0) {
+		  if (!options.allowUpdate && count === 0) {
 			Blazy.prototype.destroy();
 		}
 	}
 	
 	function loadImage(ele, force){
 		// if element is visible
-		if(force || (ele.offsetWidth > 0 && ele.offsetHeight > 0)) {
+		 if(force || options.loadInvisible || (ele.offsetWidth > 0 && ele.offsetHeight > 0)) {
 			var dataSrc = ele.getAttribute(source) || ele.getAttribute(options.src); // fallback to default data-src
 			if(dataSrc) {
 				var dataSrcSplitted = dataSrc.split(options.separator);
@@ -168,13 +205,12 @@
 	function elementInView(ele) {
 		var rect = ele.getBoundingClientRect();
 		
-		return (
-			// Intersection
-			rect.right >= viewport.left
-			&& rect.bottom >= viewport.top
-			&& rect.left <= viewport.right
-			&& rect.top <= viewport.bottom
-		 );
+		 return (
+            // Intersection
+            ( options.skipHorizontal || (rect.right >= viewport.left && rect.left <= viewport.right))
+            && rect.bottom >= viewport.top
+            && rect.top <= viewport.bottom
+            );
 	 }
 	 
 	 function isElementLoaded(ele) {
@@ -182,10 +218,17 @@
 	 }
 	 
 	 function createImageArray(selector) {
- 		var nodelist 	= document.querySelectorAll(selector);
- 		count 			= nodelist.length;
- 		//converting nodelist to array
- 		for(var i = count; i--; images.unshift(nodelist[i])){}
+ 		 //Adding this functionality so that we can pass the images instead of creating the array in this script.
+        //This is useful as we are already parsing the DOM to find all the images in directive and so no need to parse DOM again.
+        if(options.imagesArr.length > 0){
+            images = options.imagesArr;
+            count = images.length;
+        }else{
+            var nodelist 	= document.querySelectorAll(selector);
+            //converting nodelist to array
+            count 			= nodelist.length;
+            for(var i = count; i--; images.unshift(nodelist[i])){}
+        }
 	 }
 	 
 	 function saveViewportOffset(){
