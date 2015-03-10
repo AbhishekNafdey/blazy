@@ -51,7 +51,7 @@
 		viewport				= {};
 		//options
 		options 				= settings 				|| {};
-		  options.imagesArr	    = options.imagesArr 	|| [];
+		options.imagesArr	    = options.imagesArr 	|| [];
         options.allowUpdate     = options.allowUpdate || false;
 		options.error	 		= options.error 		|| false;
 		options.offset			= options.offset 		|| 100;
